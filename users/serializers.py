@@ -1,4 +1,5 @@
 from rest_framework import serializers, status
+from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 
 from users.models import User
@@ -26,10 +27,47 @@ class UserListSerializer(serializers.ModelSerializer):
         model = User
 
 
+# class InviteListSerializer(serializers.ModelSerializer):
+#     invited_friends = serializers.SerializerMethodField()
+#
+#     def get_invited_friends(self, obj):
+#         friends = User.objects.filter(invited_by=obj).all()
+#         res = [friend.phone_number for friend in friends]
+#         return res
+#
+#     class Meta:
+#         fields = ('invited_friends',)
+#         model = User
+
+
+class InviteRelatedField(serializers.RelatedField):
+    def to_representation(self, value):
+        friends = User.objects.filter(invited_by=value).all()
+        res = [friend.phone_number for friend in friends]
+        return res
+
+
 class UserDetailSerializer(serializers.ModelSerializer):
+    invite_code = serializers.CharField(read_only=True)
+    invited_friends = InviteRelatedField(source='invite_code', read_only=True)
+
+    def validate_invited_by(self, value):
+        if self.instance.invited_by:
+            raise ValidationError(
+                'Запрещено изменять код в поле \'invited_by\''
+            )
+        if self.instance == value:
+            raise ValidationError(
+                'Запрещено указывать свой инвайт код. '
+                'Необходимо указать код пригласившего Вас пользователя'
+            )
+        return super().validate(value)
+
     class Meta:
-        fields = ('id', 'first_name', 'last_name', 'phone_number',
-                  'invite_code', 'invited_by', 'last_login', 'date_joined')
+        fields = (
+            'id', 'first_name', 'last_name', 'phone_number',
+            'invite_code', 'invited_by', 'last_login', 'date_joined', 'invited_friends'
+        )
         model = User
 
 

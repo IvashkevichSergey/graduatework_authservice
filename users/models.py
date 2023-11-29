@@ -8,8 +8,11 @@ class User(AbstractUser):
     """Модель пользователя сервисом"""
     username = None
     phone_number = models.PositiveBigIntegerField(unique=True)
-    invite_code = models.CharField(max_length=6, null=True)
-    invited_by = models.ForeignKey('self', on_delete=models.SET_NULL, null=True)
+    invite_code = models.CharField(max_length=6, null=True, unique=True)
+    invited_by = models.ForeignKey(
+        to='self', to_field='invite_code',
+        null=True, on_delete=models.SET_NULL
+    )
     password = models.TextField(null=True)
 
     def set_invite_code(self):
