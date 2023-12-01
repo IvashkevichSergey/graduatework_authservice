@@ -44,7 +44,8 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
 
     'users',
-    'rest_framework'
+    'rest_framework',
+    'drf_yasg',
 ]
 
 MIDDLEWARE = [
@@ -84,9 +85,13 @@ WSGI_APPLICATION = 'config.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'auth_service_db',
-        'USER': os.getenv('USER'),
-        'PASSWORD': os.getenv('PASSWORD')
+        # 'NAME': 'auth_service_db',
+        'NAME': 'postgres',
+        # 'USER': os.getenv('USER'),
+        'USER': 'postgres',
+        'PASSWORD': '123',
+        # 'PASSWORD': os.getenv('PASSWORD'),
+        'HOST': 'db'
     }
 }
 
@@ -138,8 +143,8 @@ AUTH_USER_MODEL = 'users.User'
 # DRF settings
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        # 'rest_framework.authentication.SessionAuthentication',
-        'rest_framework.authentication.BasicAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
+        # 'rest_framework.authentication.BasicAuthentication',
     ],
 }
 

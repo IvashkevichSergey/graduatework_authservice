@@ -49,7 +49,8 @@ class UserDetailSerializer(serializers.ModelSerializer):
     class Meta:
         fields = (
             'id', 'first_name', 'last_name', 'phone_number',
-            'invite_code', 'invited_by', 'invited_users', 'last_login', 'date_joined'
+            'invite_code', 'invited_by', 'invited_users',
+            'last_login', 'date_joined'
         )
         model = User
 
