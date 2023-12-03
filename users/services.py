@@ -26,7 +26,7 @@ class SettingsBackend(BaseBackend):
         # Если данные переданы в функцию корректно, то ищем пользователя
         # в БД. Если пользователь не найден - записываем данные о новом
         # пользователе в БД
-        if phone_number and verification_code and verification_code == code:
+        if phone_number and verification_code and int(verification_code) == code:
             try:
                 user = User.objects.get(phone_number=phone_number)
             except User.DoesNotExist:
@@ -34,7 +34,6 @@ class SettingsBackend(BaseBackend):
                 user.set_invite_code()
                 user.save()
             return user
-
         return None
 
     def get_user(self, user_id):

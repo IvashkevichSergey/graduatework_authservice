@@ -126,7 +126,10 @@ class UserDetailAPIView(generics.RetrieveUpdateAPIView):
 
     def get(self, request: Request, *args: tuple, **kwargs: dict) -> Response:
         if not request.user.is_authenticated:
-            return Response({'Текущий статус': 'Вы не авторизованы в системе'})
+            return Response(
+                {'Текущий статус': 'Вы не авторизованы в системе'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         return super().get(request, *args, **kwargs)
 
 
