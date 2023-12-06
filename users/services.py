@@ -1,8 +1,8 @@
 import random
 from time import sleep
-
-from django.contrib.auth.backends import BaseBackend
-from users.models import User
+from rest_framework import status, exceptions
+from rest_framework.request import Request
+from users.serializers import CodeAuthSerializer
 
 
 def generate_auth_code() -> int:
@@ -13,28 +13,27 @@ def generate_auth_code() -> int:
     return code
 
 
-class SettingsBackend(BaseBackend):
-    """
-    Класс, отвечающий за аутентификацию пользователей по
-    номеру телефона и коду авторизации
-    """
+def check_verification_code(request: Request, verification_code: str):
+    """Функция проверяет отправляемые пользователем данные
+    по эндпоинту /users/login/"""
+    # Первичная валидация вводимых данных посредством сериализатора
+    serializer = CodeAuthSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
 
-    def authenticate(self, request, phone_number=None, verification_code=None):
-        # Получаем из сессии сгенерированный ранее код
-        code = request.session.get('code')
+    user_code = serializer.data.get('verification_code')
+    # Проверка вводимого пользователем кода и сгенерированного
+    if user_code != verification_code:
+        raise exceptions.ValidationError(
+            {'Ошибка авторизации': 'Код введён некорректно, повторите попытку'}
+        )
 
-        # Если данные переданы в функцию корректно, то ищем пользователя
-        # в БД. Если пользователь не найден - записываем данные о новом
-        # пользователе в БД
-        if phone_number and verification_code and int(verification_code) == code:
-            try:
-                user = User.objects.get(phone_number=phone_number)
-            except User.DoesNotExist:
-                user = User(phone_number=phone_number)
-                user.set_invite_code()
-                user.save()
-            return user
-        return None
 
-    def get_user(self, user_id):
-        return User.objects.get(pk=user_id)
+def check_user_auth(request: Request):
+    """Функция проверяет авторизован ли пользователь перед отправкой
+    GET/POST запросов по эндпоинтам /users/login/ и /users/auth/"""
+    if not request.user.is_anonymous:
+        return {
+            'data': {'Ответ от сервера':
+                    f'Вы уже авторизованы как \"{request.user}\"'},
+            'status': status.HTTP_200_OK
+        }

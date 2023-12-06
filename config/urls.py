@@ -22,6 +22,8 @@ from drf_yasg import openapi
 from drf_yasg.views import get_schema_view
 from rest_framework import permissions
 
+from users.views import main_page_view
+
 schema_view = get_schema_view(
     openapi.Info(
         title="API Documentation",
@@ -33,7 +35,8 @@ schema_view = get_schema_view(
 )
 
 urlpatterns = [
+    path('', main_page_view, name='main'),
     path('admin/', admin.site.urls),
     path('users/', include('users.urls', namespace='users')),
-    path('docs/', schema_view.with_ui('redoc', cache_timeout=0), name='redoc')
+    path('docs/', schema_view.with_ui('redoc', cache_timeout=0), name='redoc'),
 ]

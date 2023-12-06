@@ -16,28 +16,28 @@ class UsersAuthTestCase(APITestCase):
 
     def test_post_auth(self):
         """Тест POST запроса на отправку номера телефона
-        по эндпоинту /users/auth/"""
+        по эндпоинту /users/login/"""
 
         response = self.client.post(
-            reverse('users:user_auth'), data=self.data
+            reverse('users:user_login'), data=self.data
         )
-        self.assertRedirects(response, '/users/login/')
+        self.assertRedirects(response, '/users/auth/')
         self.assertTrue(self.client.session.get('phone_number'))
         self.assertTrue(self.client.session.get('code'))
 
     def test_post_wrong_auth(self):
         """Тест POST запроса на валидацию (отправка пустой формы)
-        по эндпоинту /users/auth/"""
+        по эндпоинту /users/login/"""
 
         self.data = {"": ""}
-        response = self.client.post(reverse('users:user_auth'), data=self.data)
+        response = self.client.post(reverse('users:user_login'), data=self.data)
         self.assertEqual(response.json(), {'phone_number': ['Обязательное поле.']})
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_get_login_wrong_session(self):
-        """Тест GET запроса по эндпоинту /users/login/ с пустой сессией"""
+        """Тест GET запроса по эндпоинту /users/auth/ с пустой сессией"""
 
-        response = self.client.get(reverse('users:user_login'))
+        response = self.client.get(reverse('users:user_auth'))
         self.assertEqual(
             response.json(),
             {'Ошибка': 'Данная сессия больше неактивна. '
@@ -48,11 +48,11 @@ class UsersAuthTestCase(APITestCase):
         """Тест POST запроса на отправку кода верификации
         по эндпоинту /users/login/"""
 
-        self.client.post(reverse('users:user_auth'), data=self.data)
-        self.client.get(reverse('users:user_login'))
+        self.client.post(reverse('users:user_login'), data=self.data)
+        self.client.get(reverse('users:user_auth'))
 
         self.data = {"verification_code": self.client.session.get('code')}
-        response = self.client.post(reverse('users:user_login'), data=self.data)
+        response = self.client.post(reverse('users:user_auth'), data=self.data)
         self.assertEqual(
             response.json(),
             {'Ответ от сервера': 'Авторизация прошла успешно'}
@@ -62,16 +62,16 @@ class UsersAuthTestCase(APITestCase):
 
     def test_post_wrong_login(self):
         """Тест POST запроса на валидацию кода верификации
-        по эндпоинту /users/login/"""
+        по эндпоинту /users/auth/"""
 
-        self.client.post(reverse('users:user_auth'), data=self.data)
-        self.client.get(reverse('users:user_login'))
+        self.client.post(reverse('users:user_login'), data=self.data)
+        self.client.get(reverse('users:user_auth'))
 
-        self.data = {"verification_code": "0000"}
-        response = self.client.post(reverse('users:user_login'), data=self.data)
+        self.data = {"verification_code": "9999"}
+        response = self.client.post(reverse('users:user_auth'), data=self.data)
         self.assertEqual(
             response.json(),
-            {'Ошибка': 'Код введён некорректно, повторите попытку.'}
+            {'Ошибка авторизации': 'Код введён некорректно, повторите попытку'}
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
@@ -79,5 +79,5 @@ class UsersAuthTestCase(APITestCase):
         """Тест GET запроса по эндпоинту /users/profile/ """
 
         response = self.client.get(reverse('users:user_profile'))
-        self.assertEqual(response.json(), {'Текущий статус': 'Вы не авторизованы в системе'})
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.json(), {'detail': 'Учетные данные не были предоставлены.'})
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)

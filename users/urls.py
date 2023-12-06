@@ -5,6 +5,7 @@ from users.views import LoginView, UsersListAPIView, \
 
 app_name = UsersConfig.name
 
+
 urlpatterns = [
     path('auth/', AuthView.as_view(), name='user_auth'),
     path('login/', LoginView.as_view(), name='user_login'),

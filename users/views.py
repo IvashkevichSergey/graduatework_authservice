@@ -1,106 +1,109 @@
-from django.contrib.auth import authenticate, login, logout
-from django.shortcuts import redirect
-from rest_framework import generics, status
+from django.contrib.auth import login, logout
+from django.http import HttpResponseRedirect
+from rest_framework import generics, status, exceptions
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
+from rest_framework.reverse import reverse_lazy
 from rest_framework.views import APIView
+from rest_framework.authentication import authenticate
 from users.models import User
-from users.serializers import UserListSerializer, UserAuthSerializer, UserDetailSerializer
-from users.services import generate_auth_code
+from users.serializers import UserAuthSerializer, UserSerializer
+from users.services import generate_auth_code, check_user_auth
 
 
-class AuthView(APIView):
+def main_page_view(request) -> HttpResponseRedirect:
+    return HttpResponseRedirect(reverse_lazy('users:user_login', request=request))
+
+
+class LoginView(APIView):
     """Контроллер получает введённый пользователем номер телефона,
     и при успешной валидации номера перенаправляет пользователя
     на страницу ввода кода авторизации,
     предварительно сохраняя номер телефона в текущую сессию"""
 
     def get(self, request: Request) -> Response:
+        is_user_auth = check_user_auth(request)
+        if is_user_auth:
+            return Response(**is_user_auth)
         return Response({
             "Ответ от сервера": "Необходимо отправить номер телефона "
                                 "POST запросом по форме "
-                                "\"phone_number\": 12345678910"},
-            status=status.HTTP_200_OK)
+                                "\"phone_number\": 8XXXXXXXXXX"},
+            status=status.HTTP_200_OK
+        )
 
-    def post(self, request: Request) -> Response:
-        """Обработка POST запроса пользователя на авторизацию"""
-        params = request.data
-        serializer = UserAuthSerializer(data=params)
-        if serializer.is_valid():
-            request.session['phone_number'] = serializer.data.get('phone_number')
-            return redirect('users:user_login')
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    def post(self, request: Request) -> (Response, HttpResponseRedirect):
+        """Обработка POST запроса пользователя на авторизацию.
+        Задаётся длительность хранения номера телефона в сессии - 5 минут
+        """
+        is_user_auth = check_user_auth(request)
+        if is_user_auth:
+            return Response(**is_user_auth)
+
+        serializer = UserAuthSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        request.session['phone_number'] = serializer.data.get('phone_number')
+        request.session.set_expiry(300)
+        return HttpResponseRedirect(reverse_lazy('users:user_auth'))
+
+        # return redirect('users:user_auth')
 
 
-class LoginView(APIView):
+class AuthView(APIView):
     """Контроллер для проведения авторизации пользователя по
     сгенерированному коду авторизации"""
 
     def get(self, request: Request) -> Response:
         """Обработка GET запроса для авторизации пользователя"""
 
+        is_user_auth = check_user_auth(request)
+        if is_user_auth:
+            return Response(**is_user_auth)
         # Проверка на существование сохранённого в текущей сессии
         # номера телефона по ключу 'phone_number'
         if not request.session.get('phone_number'):
-            return Response(
+            raise exceptions.PermissionDenied(
                 {'Ошибка': 'Данная сессия больше неактивна. '
                            'Повторно отправьте номер телефона '
-                           'по адресу /users/auth/'},
-                status=status.HTTP_400_BAD_REQUEST
+                           'по адресу /users/auth/'}
             )
 
         # Генерируем код и сохраняем его в текущей сессии
         code = generate_auth_code()
         request.session['code'] = code
-        print('Код верификации', request.session.get('code'))
+        print('Код авторизации', request.session.get('code'))
 
         return Response(
-            {'Ответ от сервера': 'Введите код верификации в поле \'verification_code\''
-                                 ' по адресу /users/login/'},
+            {'Ответ от сервера': 'Введите код авторизации в поле \'verification_code\' '
+                                 'по адресу /users/auth'},
             status=status.HTTP_200_OK
         )
 
     def post(self, request: Request) -> Response:
         """Обработка POST запроса пользователя на авторизацию"""
-        phone = request.session.get('phone_number')
+        is_user_auth = check_user_auth(request)
+        if is_user_auth:
+            return Response(**is_user_auth)
+
+        user_phone = request.session.get('phone_number')
         verification_code = request.session.get('code')
 
-        # Проверка на существование сохранённого в текущей сессии
-        # номера телефона и кода авторизации
-        if not phone or not verification_code:
-            return Response(
+        # Проверяем что с момента отправки номера телефона
+        # сессия всё ещё активна
+        if not user_phone or not verification_code:
+            raise exceptions.PermissionDenied(
                 {'Ошибка': 'Данная сессия больше неактивна. '
                            'Повторно отправьте номер телефона '
-                           'по адресу /users/auth/'},
-                status=status.HTTP_400_BAD_REQUEST
+                           'по адресу /users/login'}
             )
 
-        if not request.data:
-            return Response(
-                {'Ошибка': 'Введите код верификации в поле \'verification_code\''
-                           ' по адресу /users/login/'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        user_code = request.data.get('verification_code')
-        # Проверка на наличие заполненного пользователем
-        # поля verification_code
-        if not user_code:
-            return Response(
-                {'Ошибка': 'Поле \'verification_code\' '
-                           'является обязательными для заполнения'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        # Передача данных в класс авторизации
-        user = authenticate(request=request, phone_number=phone, verification_code=user_code)
-
-        # Проверка на корректность введённого кода авторизации
-        if user is None:
-            return Response(
-                {'Ошибка': 'Код введён некорректно, повторите попытку.'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        user = authenticate(
+            request=request,
+            phone_number=user_phone,
+            verification_code=verification_code,
+        )
 
         # Сохранение авторизованного пользователя в сессии
         login(request, user)
@@ -113,24 +116,17 @@ class LoginView(APIView):
 class UsersListAPIView(generics.ListAPIView):
     """Контроллер для отображения списка пользователей"""
     queryset = User.objects.all()
-    serializer_class = UserListSerializer
+    serializer_class = UserSerializer
 
 
 class UserDetailAPIView(generics.RetrieveUpdateAPIView):
     """Контроллер для отображения детальной информации о пользователе"""
     queryset = User.objects.all()
-    serializer_class = UserDetailSerializer
+    serializer_class = UserSerializer
+    permission_classes = [IsAuthenticated]
 
     def get_object(self) -> User:
         return self.request.user
-
-    def get(self, request: Request, *args: tuple, **kwargs: dict) -> Response:
-        if not request.user.is_authenticated:
-            return Response(
-                {'Текущий статус': 'Вы не авторизованы в системе'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        return super().get(request, *args, **kwargs)
 
 
 class LogoutView(APIView):
@@ -138,9 +134,8 @@ class LogoutView(APIView):
 
     def get(self, request: Request) -> Response:
         if not request.user.is_authenticated:
-            return Response(
-                {'Ответ от сервера': 'Вы не авторизованы в системе'},
-                status=status.HTTP_400_BAD_REQUEST
+            raise exceptions.NotAuthenticated(
+                {'Ошибка доступа': 'Вы не авторизованы в системе'}
             )
 
         logout(request)
