@@ -1,5 +1,5 @@
 from rest_framework import exceptions
-from rest_framework.authentication import BaseAuthentication, CSRFCheck
+from rest_framework.authentication import BaseAuthentication
 
 from users.models import User
 from users.services import check_verification_code

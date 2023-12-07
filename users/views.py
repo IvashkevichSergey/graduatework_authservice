@@ -13,7 +13,9 @@ from users.services import generate_auth_code, check_user_auth
 
 
 def main_page_view(request) -> HttpResponseRedirect:
-    return HttpResponseRedirect(reverse_lazy('users:user_login', request=request))
+    return HttpResponseRedirect(
+        reverse_lazy('users:user_login', request=request)
+    )
 
 
 class LoginView(APIView):
@@ -51,14 +53,13 @@ class LoginView(APIView):
         request.session.set_expiry(300)
         return HttpResponseRedirect(reverse_lazy('users:user_auth'))
 
-        # return redirect('users:user_auth')
 
 
 class AuthView(APIView):
     """Контроллер для проведения авторизации пользователя по
     сгенерированному коду авторизации"""
 
-    def get(self, request: Request) -> Response:
+    def get(self, request: Request) -> (Response, HttpResponseRedirect):
         """Обработка GET запроса для авторизации пользователя"""
 
         is_user_auth = check_user_auth(request)
@@ -79,12 +80,12 @@ class AuthView(APIView):
         print('Код авторизации', request.session.get('code'))
 
         return Response(
-            {'Ответ от сервера': 'Введите код авторизации в поле \'verification_code\' '
-                                 'по адресу /users/auth'},
+            {'Ответ от сервера': f'Введите код авторизации ({code}) в поле '
+                                 f'\'verification_code\' по адресу /users/auth'},
             status=status.HTTP_200_OK
         )
 
-    def post(self, request: Request) -> Response:
+    def post(self, request: Request) -> (HttpResponseRedirect, Response):
         """Обработка POST запроса пользователя на авторизацию"""
         is_user_auth = check_user_auth(request)
         if is_user_auth:
@@ -110,10 +111,13 @@ class AuthView(APIView):
 
         # Сохранение авторизованного пользователя в сессии
         login(request, user)
-        return Response(
-            {'Ответ от сервера': 'Авторизация прошла успешно'},
-            status=status.HTTP_200_OK
-        )
+
+        return HttpResponseRedirect(reverse_lazy('users:user_profile'))
+
+        # return Response(
+        #     {'Ответ от сервера': 'Авторизация прошла успешно'},
+        #     status=status.HTTP_200_OK
+        # )
 
 
 class UsersListAPIView(generics.ListAPIView):

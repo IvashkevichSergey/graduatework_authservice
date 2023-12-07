@@ -95,7 +95,10 @@ class UsersAuthTestCase(APITestCase):
         """Тест GET запроса по эндпоинту /users/profile/ """
 
         response = self.client.get(reverse('users:user_profile'))
-        self.assertEqual(response.json(), {'detail': 'Учетные данные не были предоставлены.'})
+        self.assertEqual(
+            response.json(),
+            {'detail': 'Учетные данные не были предоставлены.'}
+        )
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_get_logout(self):
