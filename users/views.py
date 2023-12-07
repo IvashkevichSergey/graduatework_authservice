@@ -23,9 +23,12 @@ class LoginView(APIView):
     предварительно сохраняя номер телефона в текущую сессию"""
 
     def get(self, request: Request) -> Response:
+
+        # Проверяем авторизован ли пользователь
         is_user_auth = check_user_auth(request)
         if is_user_auth:
             return Response(**is_user_auth)
+
         return Response({
             "Ответ от сервера": "Необходимо отправить номер телефона "
                                 "POST запросом по форме "

@@ -38,25 +38,9 @@ class CustomAuthBackend(BaseAuthentication):
                 {'Ошибка авторизации': 'Ваша учётная запись не активна. '
                                        'Свяжитесь с администратором'}
             )
-        self.enforce_csrf(request)
 
         return user
 
     @staticmethod
     def get_user(user_id):
         return User.objects.get(pk=user_id)
-
-    def enforce_csrf(self, request):
-        """
-        Enforce CSRF validation for session based authentication.
-        """
-        def dummy_get_response(request):  # pragma: no cover
-            return None
-
-        check = CSRFCheck(dummy_get_response)
-        # populates request.META['CSRF_COOKIE'], which is used in process_view()
-        check.process_request(request)
-        reason = check.process_view(request, None, (), {})
-        if reason:
-            # CSRF failed, bail with explicit error message
-            raise exceptions.PermissionDenied('CSRF Failed: %s' % reason)
