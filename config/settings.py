@@ -85,13 +85,13 @@ WSGI_APPLICATION = 'config.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'auth_service_db',
-        # 'NAME': 'postgres',
+        # 'NAME': 'auth_service_db',
+        'NAME': 'postgres',
         # 'USER': os.getenv('USER'),
         'USER': 'postgres',
         'PASSWORD': '123',
         # 'PASSWORD': os.getenv('PASSWORD'),
-        # 'HOST': 'db'
+        'HOST': 'db'
     }
 }
 

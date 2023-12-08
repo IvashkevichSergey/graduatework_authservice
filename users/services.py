@@ -13,7 +13,8 @@ def generate_auth_code() -> int:
     return code
 
 
-def check_verification_code(request: Request, verification_code: str):
+def check_verification_code(request: Request,
+                            verification_code: str) -> None:
     """Функция проверяет отправляемые пользователем данные
     по эндпоинту /users/login/"""
     # Первичная валидация вводимых данных посредством сериализатора
@@ -28,12 +29,10 @@ def check_verification_code(request: Request, verification_code: str):
         )
 
 
-def check_user_auth(request: Request):
+def check_user_auth(request: Request) -> None:
     """Функция проверяет авторизован ли пользователь перед отправкой
     GET/POST запросов по эндпоинтам /users/login/ и /users/auth/"""
     if not request.user.is_anonymous:
-        return {
-            'data': {'Ответ от сервера':
-                    f'Вы уже авторизованы как \"{request.user}\"'},
-            'status': status.HTTP_200_OK
-        }
+        raise exceptions.ValidationError(
+            {'Ошибка доступа': f'Вы уже авторизованы как \"{request.user}\"'}
+        )

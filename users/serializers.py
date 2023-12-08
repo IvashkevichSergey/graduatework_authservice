@@ -46,7 +46,7 @@ class UserSerializer(serializers.ModelSerializer):
         )
 
 
-class UserAuthSerializer(serializers.Serializer):
+class UserLoginSerializer(serializers.Serializer):
     """Сериализатор для валидации номера телефона при
     авторизации пользователя"""
     phone_number = serializers.IntegerField()
@@ -63,7 +63,7 @@ class UserAuthSerializer(serializers.Serializer):
             raise ValidationError(
                 "Номер телефона должен начинаться с цифры 8")
 
-        return super(UserAuthSerializer, self).validate(value)
+        return super(UserLoginSerializer, self).validate(value)
 
     def create(self, validated_data):
         pass

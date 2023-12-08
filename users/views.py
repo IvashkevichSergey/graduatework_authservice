@@ -1,6 +1,7 @@
 from django.contrib.auth import login, logout
 from django.http import HttpResponseRedirect
 from rest_framework import generics, status, exceptions
+from rest_framework.generics import GenericAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -8,7 +9,7 @@ from rest_framework.reverse import reverse_lazy
 from rest_framework.views import APIView
 from rest_framework.authentication import authenticate
 from users.models import User
-from users.serializers import UserAuthSerializer, UserSerializer
+from users.serializers import UserLoginSerializer, UserSerializer, CodeAuthSerializer
 from users.services import generate_auth_code, check_user_auth
 
 
@@ -18,18 +19,18 @@ def main_page_view(request) -> HttpResponseRedirect:
     )
 
 
-class LoginView(APIView):
+class LoginView(GenericAPIView):
     """Контроллер получает введённый пользователем номер телефона,
     и при успешной валидации номера перенаправляет пользователя
-    на страницу ввода кода авторизации,
-    предварительно сохраняя номер телефона в текущую сессию"""
+    на страницу ввода кода авторизации, предварительно сохраняя номер
+    телефона в текущую сессию"""
+    serializer_class = UserLoginSerializer
 
     def get(self, request: Request) -> Response:
+        """Страница с инструкцией об отправке номера телефона"""
 
         # Проверяем авторизован ли пользователь
-        is_user_auth = check_user_auth(request)
-        if is_user_auth:
-            return Response(**is_user_auth)
+        check_user_auth(request)
 
         return Response({
             "Ответ от сервера": "Необходимо отправить номер телефона "
@@ -42,11 +43,11 @@ class LoginView(APIView):
         """Обработка POST запроса пользователя на авторизацию.
         Задаётся длительность хранения номера телефона в сессии - 5 минут
         """
-        is_user_auth = check_user_auth(request)
-        if is_user_auth:
-            return Response(**is_user_auth)
 
-        serializer = UserAuthSerializer(data=request.data)
+        # Проверяем авторизован ли пользователь
+        check_user_auth(request)
+
+        serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
         request.session['phone_number'] = serializer.data.get('phone_number')
@@ -54,17 +55,17 @@ class LoginView(APIView):
         return HttpResponseRedirect(reverse_lazy('users:user_auth'))
 
 
-
-class AuthView(APIView):
+class AuthView(GenericAPIView):
     """Контроллер для проведения авторизации пользователя по
     сгенерированному коду авторизации"""
+    serializer_class = CodeAuthSerializer
 
     def get(self, request: Request) -> (Response, HttpResponseRedirect):
         """Обработка GET запроса для авторизации пользователя"""
 
-        is_user_auth = check_user_auth(request)
-        if is_user_auth:
-            return Response(**is_user_auth)
+        # Проверяем авторизован ли пользователь
+        check_user_auth(request)
+
         # Проверка на существование сохранённого в текущей сессии
         # номера телефона по ключу 'phone_number'
         if not request.session.get('phone_number'):
@@ -87,9 +88,9 @@ class AuthView(APIView):
 
     def post(self, request: Request) -> (HttpResponseRedirect, Response):
         """Обработка POST запроса пользователя на авторизацию"""
-        is_user_auth = check_user_auth(request)
-        if is_user_auth:
-            return Response(**is_user_auth)
+
+        # Проверяем авторизован ли пользователь
+        check_user_auth(request)
 
         user_phone = request.session.get('phone_number')
         verification_code = request.session.get('code')
@@ -113,11 +114,6 @@ class AuthView(APIView):
         login(request, user)
 
         return HttpResponseRedirect(reverse_lazy('users:user_profile'))
-
-        # return Response(
-        #     {'Ответ от сервера': 'Авторизация прошла успешно'},
-        #     status=status.HTTP_200_OK
-        # )
 
 
 class UsersListAPIView(generics.ListAPIView):
